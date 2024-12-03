@@ -1,0 +1,1390 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mini Monopol</title>
+    <link href="https://fonts.googleapis.com/css2?family=Quicksand:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Quicksand', sans-serif;
+            text-align: center;
+            background-image: url('images/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            margin: 0;
+            padding: 20px;
+            min-height: 100vh;
+            position: relative;
+            overflow: hidden;
+        }
+
+        body::before {
+            content: '';
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: url('data:image/svg+xml,<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg"><circle cx="50" cy="50" r="1" fill="rgba(255,255,255,0.2)"/></svg>');
+            background-size: 50px 50px;
+            opacity: 0.5;
+            pointer-events: none;
+            z-index: -1;
+        }
+
+        #gameContainer {
+            background: rgba(0, 0, 0, 0.3);
+            backdrop-filter: blur(5px);
+            border-radius: 20px;
+            padding: 20px;
+            margin: 20px auto;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            color: #ffffff;
+            font-size: 3em;
+            text-shadow: 2px 2px 5px #000000;
+            font-weight: 700;
+            text-transform: none;
+        }
+
+        .game-controls {
+            position: fixed;
+            left: 20px;
+            top: 50%;
+            transform: translateY(-50%);
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            z-index: 100;
+        }
+
+        .control-button {
+            padding: 12px 25px;
+            font-size: 1em;
+            border: 2px solid #4CAF50;
+            border-radius: 30px;
+            background-color: rgba(0, 0, 0, 0.7);
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: capitalize;
+            letter-spacing: 1px;
+            width: 160px;
+            text-align: center;
+            font-weight: 500;
+        }
+
+        .control-button:disabled {
+            background-color: #999;
+            cursor: not-allowed;
+            border-color: #999;
+            opacity: 0.5;
+        }
+
+        .control-button:hover:not(:disabled) {
+            background-color: #4CAF50;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        }
+
+        #scoreboard {
+            font-size: 20px;
+            color: #fff;
+            text-shadow: 1px 1px 3px #000;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        #timer {
+            font-size: 20px;
+            color: #fff;
+            text-shadow: 1px 1px 3px #000;
+            margin-bottom: 10px;
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(6, 100px);
+            grid-gap: 10px;
+            justify-content: center;
+            margin: 20px auto;
+        }
+
+        .cell {
+            width: 100px;
+            height: 120px;
+            border-radius: 10px;
+            background-size: 220%;
+            background-position: center center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cell.initial-animation {
+            animation: dropIn 0.6s cubic-bezier(0.17, 0.67, 0.83, 0.67) forwards;
+            opacity: 0;
+            transform-origin: center;
+        }
+
+        @keyframes dropIn {
+            from {
+                transform: scale(0.3);
+                opacity: 0;
+            }
+            to {
+                transform: scale(1);
+                opacity: 1;
+            }
+        }
+
+        .cell:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .color-R { background-image: url('images/red.png'); background-size: 220%; background-repeat: no-repeat; background-position: center; }
+        .color-G { background-image: url('images/green.png'); background-size: 220%; background-repeat: no-repeat; background-position: center; }
+        .color-B { background-image: url('images/blue.png'); background-size: 220%; background-repeat: no-repeat; background-position: center; }
+        .color-P { background-image: url('images/purple.png'); background-size: 220%; background-repeat: no-repeat; background-position: center; }
+        .color-Y { background-image: url('images/yellow.png'); background-size: 220%; background-repeat: no-repeat; background-position: center; }
+
+        /* Kazandınız ve Oyun Bitti açılır pencere stili */
+        #gameOverModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
+            z-index: 1000;
+        }
+
+        .gameover-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            animation: fadeInScale 0.5s ease-out;
+        }
+
+        .gameover-title {
+            font-size: 4em;
+            color: #fff;
+            margin-bottom: 20px;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(255, 99, 71, 0.5);
+            animation: glow 2s ease-in-out infinite alternate;
+            text-transform: capitalize;
+        }
+
+        .gameover-score {
+            font-size: 2.5em;
+            color: #fff;
+            margin: 30px 0;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        #winModal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
+            z-index: 1000;
+        }
+
+        .win-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            text-align: center;
+            animation: fadeInScale 0.5s ease-out;
+        }
+
+        @keyframes fadeInScale {
+            from {
+                opacity: 0;
+                transform: translate(-50%, -50%) scale(0.8);
+            }
+            to {
+                opacity: 1;
+                transform: translate(-50%, -50%) scale(1);
+            }
+        }
+
+        .win-title {
+            font-size: 4em;
+            color: #fff;
+            margin-bottom: 20px;
+            font-weight: 700;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+            animation: glow 2s ease-in-out infinite alternate;
+            text-transform: capitalize;
+        }
+
+        .win-message {
+            font-size: 1.8em;
+            color: #fff;
+            margin: 20px 0;
+            text-shadow: 0 0 5px rgba(255, 255, 255, 0.3);
+            font-weight: 500;
+            text-transform: capitalize;
+        }
+
+        .coupon-code {
+            background: rgba(76, 175, 80, 0.2);
+            padding: 15px 30px;
+            border-radius: 15px;
+            border: 2px solid #4CAF50;
+            color: #fff;
+            font-size: 2em;
+            margin: 20px 0;
+            display: inline-block;
+            text-shadow: 0 0 5px rgba(76, 175, 80, 0.5);
+        }
+
+        .win-buttons {
+            margin-top: 30px;
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+
+        .win-button {
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border: 2px solid #4CAF50;
+            border-radius: 30px;
+            background-color: transparent;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-transform: capitalize;
+            letter-spacing: 2px;
+            font-weight: 500;
+        }
+
+        .win-button:hover {
+            background-color: #4CAF50;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        }
+
+        #mainMenu {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .menu-logo {
+            font-size: 4em;
+            color: #fff;
+            margin-bottom: 40px;
+            font-weight: 700;
+            text-shadow: 0 0 15px rgba(76, 175, 80, 0.8),
+                        0 0 30px rgba(76, 175, 80, 0.6);
+            animation: glow 2s ease-in-out infinite alternate;
+            text-transform: none;
+            letter-spacing: 2px;
+            font-size: 5em;
+        }
+
+        @keyframes glow {
+            from {
+                text-shadow: 0 0 15px rgba(76, 175, 80, 0.8),
+                            0 0 30px rgba(76, 175, 80, 0.6);
+            }
+            to {
+                text-shadow: 0 0 25px rgba(76, 175, 80, 1),
+                            0 0 50px rgba(76, 175, 80, 0.8);
+            }
+        }
+
+        .menu-buttons {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            align-items: center;
+        }
+
+        .menu-button {
+            padding: 15px 40px;
+            font-size: 1.2em;
+            border: 2px solid #4CAF50;
+            border-radius: 30px;
+            background-color: transparent;
+            color: #fff;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 250px;
+            text-transform: capitalize;
+            letter-spacing: 2px;
+            font-weight: 500;
+        }
+
+        .menu-button:hover {
+            background-color: #4CAF50;
+            transform: scale(1.05);
+            box-shadow: 0 0 15px rgba(76, 175, 80, 0.5);
+        }
+
+        .menu-footer {
+            position: absolute;
+            bottom: 20px;
+            color: #fff;
+            font-size: 0.9em;
+            opacity: 0.7;
+        }
+
+        #gameContainer {
+            display: none;  /* Oyun alanını başlangıçta gizle */
+        }
+
+        /* CSS kısmında animasyonları güncelleyelim */
+        @keyframes matchAnimation {
+            0% {
+                transform: scale(1);
+                opacity: 1;
+            }
+            50% {
+                transform: scale(1.2);
+                opacity: 0.8;
+                filter: brightness(1.2);
+            }
+            100% {
+                transform: scale(0.3);
+                opacity: 0;
+                filter: brightness(1.3);
+            }
+        }
+
+        .cell.matching {
+            animation: matchAnimation 0.4s ease-in-out forwards;
+            pointer-events: none;
+            position: relative;
+            z-index: 2;
+            transform-origin: center center;
+        }
+
+        @keyframes sparkle {
+            0% {
+                transform: translate(-50%, -50%) scale(0);
+                opacity: 1;
+            }
+            100% {
+                transform: translate(-50%, -50%) scale(2);
+                opacity: 0.3;
+            }
+        }
+
+        .sparkle {
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            left: 50%;
+            top: 50%;
+            background: radial-gradient(circle, rgba(255,255,255,0.6) 0%, transparent 70%);
+            animation: sparkle 0.4s ease-out forwards;
+            pointer-events: none;
+        }
+
+        @keyframes newCellDrop {
+            from {
+                transform: translateY(-100px);
+                opacity: 0;
+            }
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
+        .cell.new-cell {
+            animation: newCellDrop 0.6s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+        }
+
+        function removeMatches(matches) {
+            matches.forEach(([y, x]) => {
+                const cell = document.querySelector(`.cell[data-y="${y}"][data-x="${x}"]`);
+                if (cell) {
+                    cell.classList.add('matching');
+                    const sparkle = document.createElement('div');
+                    sparkle.className = 'sparkle';
+                    cell.appendChild(sparkle);
+                }
+            });
+
+            setTimeout(() => {
+                matches.forEach(([y, x]) => {
+                    gameBoard[y][x] = null;
+                });
+                dropCells();
+                renderBoard();
+            }, 500);
+        }
+
+        function dropCells() {
+            // Önce boş hücreleri yukarı taşı
+            for (let x = 0; x < WIDTH; x++) {
+                let column = gameBoard.map(row => row[x]);
+                let filledCells = column.filter(cell => cell !== null);
+                let emptyCount = HEIGHT - filledCells.length;
+                
+                // Yeni taşları üret
+                let newCells = Array(emptyCount).fill(null).map(() => 
+                    COLORS[Math.floor(Math.random() * COLORS.length)]
+                );
+                
+                // Sütunu güncelle
+                let newColumn = [...newCells, ...filledCells];
+                for (let y = 0; y < HEIGHT; y++) {
+                    gameBoard[y][x] = newColumn[y];
+                }
+            }
+        }
+
+        function renderBoard() {
+            board.innerHTML = "";
+            for (let y = 0; y < HEIGHT; y++) {
+                for (let x = 0; x < WIDTH; x++) {
+                    createCell(gameBoard[y][x], y, x);
+                }
+            }
+        }
+
+        function updateScore(matchCount) {
+            score += matchCount * 10;
+            scoreDisplay.textContent = score;
+
+            // Her 10 puanda 2 saniye ekleyelim
+            if (score % 10 === 0) {
+                timer += 2;
+                timerDisplay.textContent = timer;
+            }
+
+            // 500 skora ulaşıldığında kazandınız mesajı
+            if (score >= 500) {
+                clearInterval(timerInterval); // Timer'ı durdur
+                showWinModal();
+            }
+        }
+
+        function highlightCell(y, x, highlight) {
+            const cell = document.querySelector(`.cell[data-y="${y}"][data-x="${x}"]`);
+            if (cell) {
+                if (highlight) {
+                    const highlightDiv = document.createElement('div');
+                    highlightDiv.className = 'cell-highlight';
+                    cell.appendChild(highlightDiv);
+                } else {
+                    const highlightDiv = cell.querySelector('.cell-highlight');
+                    if (highlightDiv) highlightDiv.remove();
+                }
+            }
+        }
+
+        function showWinModal() {
+            document.getElementById('mainMenu').style.display = 'none';
+            winModal.style.display = "block";
+        }
+
+        function showGameOverModal() {
+            finalScoreDisplay.textContent = score;
+            document.getElementById('mainMenu').style.display = 'none';
+            gameOverModal.style.display = "block";
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timer--;
+                timerDisplay.textContent = timer;
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    if (score < 500) { // Sadece kazanmamışsa game over göster
+                        showGameOverModal();
+                    }
+                }
+            }, 1000);
+        }
+
+        function resetGame() {
+            // Önce tüm zamanlayıcıları ve değişkenleri sıfırla
+            clearInterval(timerInterval);
+            
+            // Oyun değişkenlerini sıfırla
+            score = 0;
+            timer = 30;
+            selectedCell = null;
+            previousState = null;
+            
+            // Ekran görüntülerini güncelle
+            scoreDisplay.textContent = '0';
+            timerDisplay.textContent = '30';
+            
+            // Modalları kapat
+            winModal.style.display = 'none';
+            gameOverModal.style.display = 'none';
+            
+            // Oyun container'ını göster
+            document.getElementById('gameContainer').style.display = 'block';
+            document.getElementById('mainMenu').style.display = 'none';
+            
+            // Oyun alanını temizle ve yeni tahtayı oluştur
+            board.innerHTML = '';
+            createBoard();
+            
+            // Yeni timer'ı başlat
+            startTimer();
+        }
+
+        function startNewGame() {
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            window.isInitialLoad = true;
+            resetGame();
+            window.isInitialLoad = false;
+        }
+
+        function showTutorial() {
+            document.getElementById('tutorialModal').style.display = 'block';
+        }
+
+        function showHighScores() {
+            document.getElementById('highScoresModal').style.display = 'block';
+        }
+
+        function showMainMenu() {
+            document.getElementById('mainMenu').style.display = 'flex';
+            document.getElementById('gameContainer').style.display = 'none';
+            if (timer > 0 && score > 0) {
+                document.getElementById('continueGame').style.display = 'block';
+            } else {
+                document.getElementById('continueGame').style.display = 'none';
+            }
+            winModal.style.display = 'none';
+            gameOverModal.style.display = 'none';
+            clearInterval(timerInterval); // Timer'ı durdur
+        }
+
+        function undoMove() {
+            if (previousState) {
+                window.isUndoAction = true;
+                gameBoard = JSON.parse(JSON.stringify(previousState));
+                renderBoard();
+                document.getElementById("undoButton").disabled = true;
+                window.isUndoAction = false;
+            }
+        }
+
+        // Global değişkenlere ekle
+        let currentLevel = 1;
+        const LEVELS = {
+            1: { target: 100, time: 30, name: "Kolay" },
+            2: { target: 200, time: 25, name: "Orta" },
+            3: { target: 350, time: 20, name: "Zor" },
+            4: { target: 500, time: 15, name: "Uzman" }
+        };
+
+        function resetGame() {
+            clearInterval(timerInterval);
+            score = 0;
+            timer = LEVELS[currentLevel].time;
+            scoreDisplay.textContent = score;
+            timerDisplay.textContent = timer;
+            document.getElementById('level').textContent = `Seviye ${currentLevel}: ${LEVELS[currentLevel].name}`;
+            document.getElementById('target').textContent = `Hedef: ${LEVELS[currentLevel].target} puan`;
+            createBoard();
+            startTimer();
+            winModal.style.display = "none";
+            gameOverModal.style.display = "none";
+        }
+
+        function updateScore(matchCount) {
+            score += matchCount * 10;
+            scoreDisplay.textContent = score;
+
+            if (score % 10 === 0) {
+                timer += 2;
+                timerDisplay.textContent = timer;
+            }
+
+            if (score >= LEVELS[currentLevel].target) {
+                clearInterval(timerInterval);
+                if (currentLevel < Object.keys(LEVELS).length) {
+                    showLevelCompleteModal();
+                } else {
+                    showWinModal();
+                }
+            }
+        }
+
+        function showLevelCompleteModal() {
+            const modal = document.createElement('div');
+            modal.className = 'modal level-complete';
+            modal.innerHTML = `
+                <div class="modal-content">
+                    <h2>Seviye ${currentLevel} Tamamlandı!</h2>
+                    <p>Skorunuz: ${score}</p>
+                    <button class="win-button" onclick="nextLevel()">Sonraki Seviye</button>
+                    <button class="win-button" onclick="showMainMenu()">Ana Menü</button>
+                </div>
+            `;
+            document.body.appendChild(modal);
+        }
+
+        function nextLevel() {
+            document.querySelector('.level-complete').remove();
+            currentLevel++;
+            resetGame();
+        }
+
+        // HTML'e eklenecek
+        <div id="level-info">
+            <div id="level">Seviye 1: Kolay</div>
+            <div id="target">Hedef: 100 puan</div>
+        </div>
+
+        // CSS'e eklenecek
+        #level-info {
+            position: fixed;
+            left: 20px;
+            top: 20px;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+            font-size: 1.2em;
+            text-align: left;
+        }
+
+        .level-complete {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0.7) 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+        }
+
+        .level-complete .modal-content {
+            text-align: center;
+            color: white;
+            animation: fadeInScale 0.5s ease-out;
+        }
+
+        .hint-button {
+            width: 50px !important;
+            height: 50px;
+            border-radius: 50% !important;
+            padding: 0 !important;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin: 10px auto;
+            background-color: rgba(255, 193, 7, 0.2);
+            border: 2px solid #ffc107;
+            color: #ffc107;
+        }
+
+        .hint-button:hover:not(:disabled) {
+            background-color: rgba(255, 193, 7, 0.4);
+            transform: scale(1.1);
+            box-shadow: 0 0 15px rgba(255, 193, 7, 0.5);
+        }
+
+        .hint {
+            position: absolute;
+            border: 3px solid #ffc107;
+            border-radius: 10px;
+            animation: hintPulse 1s infinite;
+            pointer-events: none;
+        }
+
+        @keyframes hintPulse {
+            0% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(1.1); opacity: 0.8; }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        function continueGame() {
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            startTimer(); // Timer'ı tekrar başlat
+        }
+
+        /* Modal stil */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+            z-index: 2000;
+            backdrop-filter: blur(5px);
+        }
+
+        .modal-content {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.9);
+            padding: 30px;
+            border-radius: 20px;
+            border: 2px solid #4CAF50;
+            color: white;
+            text-align: center;
+            max-width: 500px;
+            width: 90%;
+            animation: fadeInScale 0.3s ease-out;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            right: 15px;
+            font-size: 24px;
+            color: #fff;
+            cursor: pointer;
+            width: 30px;
+            height: 30px;
+            border: none;
+            background: none;
+            transition: transform 0.3s;
+        }
+
+        .modal-close:hover {
+            transform: scale(1.2);
+            color: #4CAF50;
+        }
+
+        .modal-title {
+            font-size: 2em;
+            margin-bottom: 20px;
+            color: #4CAF50;
+            text-shadow: 0 0 10px rgba(76, 175, 80, 0.5);
+        }
+
+        .modal-text {
+            font-size: 1.2em;
+            line-height: 1.6;
+            margin-bottom: 15px;
+        }
+
+        .cell-highlight {
+            position: absolute;
+            top: -2px;
+            left: -2px;
+            right: -2px;
+            bottom: -2px;
+            border: 4px solid #4CAF50;
+            border-radius: 20px;
+            pointer-events: none;
+            z-index: 1;
+            box-shadow: 0 0 10px #4CAF50;
+            animation: highlightPulse 1.5s infinite;
+        }
+
+        @keyframes highlightPulse {
+            0% {
+                border-color: #4CAF50;
+                box-shadow: 0 0 10px #4CAF50;
+            }
+            50% {
+                border-color: #45a049;
+                box-shadow: 0 0 20px #4CAF50;
+            }
+            100% {
+                border-color: #4CAF50;
+                box-shadow: 0 0 10px #4CAF50;
+            }
+        }
+
+        .cell {
+            width: 100px;
+            height: 120px;
+            border-radius: 10px;
+            background-size: 120%;
+            background-position: center center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.3s ease-out;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cell.swapping {
+            animation: swapAnimation 0.3s ease-out;
+            z-index: 2;
+        }
+
+        @keyframes swapAnimation {
+            0% {
+                transform: scale(1);
+            }
+            50% {
+                transform: scale(1.1);
+            }
+            100% {
+                transform: scale(1);
+            }
+        }
+
+        function swapCells(y1, x1, y2, x2) {
+            const cell1 = document.querySelector(`.cell[data-y="${y1}"][data-x="${x1}"]`);
+            const cell2 = document.querySelector(`.cell[data-y="${y2}"][data-x="${x2}"]`);
+            
+            // Pozisyonları hesapla
+            const rect1 = cell1.getBoundingClientRect();
+            const rect2 = cell2.getBoundingClientRect();
+            const deltaX = rect2.left - rect1.left;
+            const deltaY = rect2.top - rect1.top;
+            
+            // İlk kutucuğu hareket ettir
+            cell1.style.zIndex = '2';
+            cell2.style.zIndex = '2';
+            cell1.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+            cell2.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
+            
+            const temp = gameBoard[y1][x1];
+            gameBoard[y1][x1] = gameBoard[y2][x2];
+            gameBoard[y2][x2] = temp;
+            
+            // Animasyon bitince render et
+            setTimeout(() => {
+                cell1.style.zIndex = '';
+                cell2.style.zIndex = '';
+                renderBoard();
+            }, 300);
+        }
+    </style>
+</head>
+<body>
+    <div id="mainMenu">
+        <div class="menu-logo">Mini MONOPOL</div>
+        <div class="menu-buttons">
+            <button class="menu-button" id="continueGame" onclick="continueGame()" style="display: none;">Oyuna Devam Et</button>
+            <button class="menu-button" onclick="startNewGame()">Yeni Oyun</button>
+            <button class="menu-button" onclick="showTutorial()">Nasıl Oynanır?</button>
+            <button class="menu-button" onclick="showHighScores()">En Yüksek Skorlar</button>
+        </div>
+        <div class="menu-footer">
+            © 2024 Mini Monopol - Tüm hakları saklıdır
+        </div>
+    </div>
+    <div id="gameContainer">
+        <h1>Mini MONOPOL</h1>
+        <div class="game-controls">
+            <button class="control-button" onclick="showMainMenu()">Ana Menü</button>
+            <button class="control-button" onclick="startNewGame()">Baştan Başla</button>
+            <button class="control-button" onclick="undoMove()" id="undoButton" disabled>Geri Al</button>
+            <button class="control-button hint-button" onclick="showHint()" id="hintButton">💡</button>
+        </div>
+        <div id="timer">Süre: <span id="time">30</span> saniye</div>
+        <div id="scoreboard">Skor: <span id="score">0</span></div>
+        <div id="board"></div>
+    </div>
+
+    <!-- Kazandınız mesajı açılır pencere -->
+    <div id="winModal">
+        <div class="win-content">
+            <div class="win-title">Tebrikler!</div>
+            <div class="win-message">Bizden kupon kazandınız</div>
+            <div class="coupon-code">MINI10</div>
+            <div class="win-buttons">
+                <button class="win-button" onclick="startNewGame()">Tekrar Oyna</button>
+                <button class="win-button" onclick="showMainMenu()">Ana Menü</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Oyun Bitti mesajı açılır pencere -->
+    <div id="gameOverModal">
+        <div class="gameover-content">
+            <div class="gameover-title">Oyun Bitti!</div>
+            <div class="gameover-score">Skorunuz: <span id="finalScore"></span></div>
+            <div class="win-buttons">
+                <button class="win-button" onclick="startNewGame()">Tekrar Oyna</button>
+                <button class="win-button" onclick="showMainMenu()">Ana Menü</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- HTML'e eklenecek modal yapıları -->
+    <div id="tutorialModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('tutorialModal')">×</button>
+            <h2 class="modal-title">Nasıl Oynanır?</h2>
+            <div class="modal-text">
+                <p>• En az 3 taş yan yana veya alt alta olmalı</p>
+                <p>• Her eşleşme için 10 puan kazanırsınız</p>
+                <p>• Her 10 puanda +2 saniye kazanırsınız</p>
+                <p>• 500 puana ulaşırsanız oyunu kazanırsınız!</p>
+                <p>• İpucu için 💡 butonunu kullanabilirsiniz</p>
+                <p>• Yanlış hamleleri geri almak için "Geri Al" butonunu kullanabilirsiniz</p>
+            </div>
+        </div>
+    </div>
+
+    <div id="highScoresModal" class="modal-overlay">
+        <div class="modal-content">
+            <button class="modal-close" onclick="closeModal('highScoresModal')">×</button>
+            <h2 class="modal-title">En Yüksek Skorlar</h2>
+            <div class="modal-text">
+                <p>En Yüksek Skorlar özelliği yakında eklenecek!</p>
+                <p>Takipte kalın...</p>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const WIDTH = 6;
+        const HEIGHT = 5;
+        const COLORS = ["R", "G", "B", "P", "Y"];
+        const board = document.getElementById("board");
+        const scoreDisplay = document.getElementById("score");
+        const timerDisplay = document.getElementById("time");
+        const winModal = document.getElementById("winModal");
+        const gameOverModal = document.getElementById("gameOverModal");
+        const finalScoreDisplay = document.getElementById("finalScore");
+
+        let gameBoard = [];
+        let score = 0;
+        let selectedCell = null;
+        let previousState = null;
+        let timer = 30;
+        let timerInterval;
+
+        function createBoard() {
+            gameBoard = [];
+            board.innerHTML = "";
+            for (let y = 0; y < HEIGHT; y++) {
+                const row = [];
+                for (let x = 0; x < WIDTH; x++) {
+                    const color = COLORS[Math.floor(Math.random() * COLORS.length)];
+                    row.push(color);
+                    createCell(color, y, x);
+                }
+                gameBoard.push(row);
+            }
+        }
+
+        function createCell(color, y, x) {
+            const cell = document.createElement("div");
+            let className = `cell color-${color}`;
+            if (window.isInitialLoad) {
+                className += ' initial-animation';
+            } else if (!window.isUndoAction && gameBoard[y][x] === null) {
+                className += ' new-cell';
+            }
+            cell.className = className;
+
+            cell.dataset.y = y;
+            cell.dataset.x = x;
+            if (window.isInitialLoad) {
+                const centerY = Math.floor(HEIGHT / 2);
+                const centerX = Math.floor(WIDTH / 2);
+                const distance = Math.sqrt(Math.pow(y - centerY, 2) + Math.pow(x - centerX, 2));
+                cell.style.animationDelay = `${distance * 0.1}s`;
+            } else if (!window.isUndoAction && gameBoard[y][x] === null) {
+                cell.style.animationDelay = `${x * 0.1}s`;
+            }
+            cell.addEventListener("click", () => handleCellClick(y, x));
+            board.appendChild(cell);
+        }
+
+        function handleCellClick(y, x) {
+            if (!selectedCell) {
+                selectedCell = { y, x };
+                highlightCell(y, x, true);
+            } else {
+                if (isAdjacent(selectedCell, { y, x })) {
+                    previousState = JSON.parse(JSON.stringify(gameBoard));
+                    document.getElementById("undoButton").disabled = false;
+                    swapCells(selectedCell.y, selectedCell.x, y, x);
+                    highlightCell(selectedCell.y, selectedCell.x, false);
+                    selectedCell = null;
+
+                    setTimeout(() => {
+                        const matches = findMatches();
+                        if (matches.length > 0) {
+                            updateScore(matches.length);
+                            removeMatches(matches);
+                        } else {
+                            swapCells(y, x, selectedCell.y, selectedCell.x);
+                            renderBoard();
+                        }
+                    }, 300);
+                } else {
+                    highlightCell(selectedCell.y, selectedCell.x, false);
+                    selectedCell = null;
+                }
+            }
+        }
+
+        function isAdjacent(cell1, cell2) {
+            const dy = Math.abs(cell1.y - cell2.y);
+            const dx = Math.abs(cell1.x - cell2.x);
+            return (dy === 1 && dx === 0) || (dy === 0 && dx === 1);
+        }
+
+        function swapCells(y1, x1, y2, x2) {
+            const cell1 = document.querySelector(`.cell[data-y="${y1}"][data-x="${x1}"]`);
+            const cell2 = document.querySelector(`.cell[data-y="${y2}"][data-x="${x2}"]`);
+            
+            // Pozisyonları hesapla
+            const rect1 = cell1.getBoundingClientRect();
+            const rect2 = cell2.getBoundingClientRect();
+            const deltaX = rect2.left - rect1.left;
+            const deltaY = rect2.top - rect1.top;
+            
+            // İlk kutucuğu hareket ettir
+            cell1.style.zIndex = '2';
+            cell2.style.zIndex = '2';
+            cell1.style.transform = `translate(${deltaX}px, ${deltaY}px)`;
+            cell2.style.transform = `translate(${-deltaX}px, ${-deltaY}px)`;
+            
+            const temp = gameBoard[y1][x1];
+            gameBoard[y1][x1] = gameBoard[y2][x2];
+            gameBoard[y2][x2] = temp;
+            
+            // Animasyon bitince render et
+            setTimeout(() => {
+                cell1.style.zIndex = '';
+                cell2.style.zIndex = '';
+                renderBoard();
+            }, 300);
+        }
+
+        function findMatches() {
+            const matches = [];
+            for (let y = 0; y < HEIGHT; y++) {
+                for (let x = 0; x < WIDTH - 2; x++) {
+                    if (gameBoard[y][x] === gameBoard[y][x + 1] && gameBoard[y][x] === gameBoard[y][x + 2]) {
+                        matches.push([y, x], [y, x + 1], [y, x + 2]);
+                    }
+                }
+            }
+            for (let x = 0; x < WIDTH; x++) {
+                for (let y = 0; y < HEIGHT - 2; y++) {
+                    if (gameBoard[y][x] === gameBoard[y + 1][x] && gameBoard[y][x] === gameBoard[y + 2][x]) {
+                        matches.push([y, x], [y + 1, x], [y + 2, x]);
+                    }
+                }
+            }
+            return Array.from(new Set(matches.map(JSON.stringify)), JSON.parse);
+        }
+
+        function removeMatches(matches) {
+            matches.forEach(([y, x]) => {
+                const cell = document.querySelector(`.cell[data-y="${y}"][data-x="${x}"]`);
+                if (cell) {
+                    cell.classList.add('matching');
+                    const sparkle = document.createElement('div');
+                    sparkle.className = 'sparkle';
+                    cell.appendChild(sparkle);
+                }
+            });
+
+            setTimeout(() => {
+                matches.forEach(([y, x]) => {
+                    gameBoard[y][x] = null;
+                });
+                dropCells();
+                renderBoard();
+            }, 500);
+        }
+
+        function dropCells() {
+            // Önce boş hücreleri yukarı taşı
+            for (let x = 0; x < WIDTH; x++) {
+                let column = gameBoard.map(row => row[x]);
+                let filledCells = column.filter(cell => cell !== null);
+                let emptyCount = HEIGHT - filledCells.length;
+                
+                // Yeni taşları üret
+                let newCells = Array(emptyCount).fill(null).map(() => 
+                    COLORS[Math.floor(Math.random() * COLORS.length)]
+                );
+                
+                // Sütunu güncelle
+                let newColumn = [...newCells, ...filledCells];
+                for (let y = 0; y < HEIGHT; y++) {
+                    gameBoard[y][x] = newColumn[y];
+                }
+            }
+        }
+
+        function renderBoard() {
+            board.innerHTML = "";
+            for (let y = 0; y < HEIGHT; y++) {
+                for (let x = 0; x < WIDTH; x++) {
+                    createCell(gameBoard[y][x], y, x);
+                }
+            }
+        }
+
+        function updateScore(matchCount) {
+            score += matchCount * 10;
+            scoreDisplay.textContent = score;
+
+            // Her 10 puanda 2 saniye ekleyelim
+            if (score % 10 === 0) {
+                timer += 2;
+                timerDisplay.textContent = timer;
+            }
+
+            // 500 skora ulaşıldığında kazandınız mesajı
+            if (score >= 500) {
+                clearInterval(timerInterval); // Timer'ı durdur
+                showWinModal();
+            }
+        }
+
+        function highlightCell(y, x, highlight) {
+            const cell = document.querySelector(`.cell[data-y="${y}"][data-x="${x}"]`);
+            if (cell) {
+                if (highlight) {
+                    const highlightDiv = document.createElement('div');
+                    highlightDiv.className = 'cell-highlight';
+                    cell.appendChild(highlightDiv);
+                } else {
+                    const highlightDiv = cell.querySelector('.cell-highlight');
+                    if (highlightDiv) highlightDiv.remove();
+                }
+            }
+        }
+
+        function showWinModal() {
+            document.getElementById('mainMenu').style.display = 'none';
+            winModal.style.display = "block";
+        }
+
+        function showGameOverModal() {
+            finalScoreDisplay.textContent = score;
+            document.getElementById('mainMenu').style.display = 'none';
+            gameOverModal.style.display = "block";
+        }
+
+        function startTimer() {
+            timerInterval = setInterval(() => {
+                timer--;
+                timerDisplay.textContent = timer;
+                if (timer <= 0) {
+                    clearInterval(timerInterval);
+                    if (score < 500) { // Sadece kazanmamışsa game over göster
+                        showGameOverModal();
+                    }
+                }
+            }, 1000);
+        }
+
+        function resetGame() {
+            // Önce tüm zamanlayıcıları ve değişkenleri sıfırla
+            clearInterval(timerInterval);
+            
+            // Oyun değişkenlerini sıfırla
+            score = 0;
+            timer = 30;
+            selectedCell = null;
+            previousState = null;
+            
+            // Ekran görüntülerini güncelle
+            scoreDisplay.textContent = '0';
+            timerDisplay.textContent = '30';
+            
+            // Modalları kapat
+            winModal.style.display = 'none';
+            gameOverModal.style.display = 'none';
+            
+            // Oyun container'ını göster
+            document.getElementById('gameContainer').style.display = 'block';
+            document.getElementById('mainMenu').style.display = 'none';
+            
+            // Oyun alanını temizle ve yeni tahtayı oluştur
+            board.innerHTML = '';
+            createBoard();
+            
+            // Yeni timer'ı başlat
+            startTimer();
+        }
+
+        function startNewGame() {
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            window.isInitialLoad = true;
+            resetGame();
+            window.isInitialLoad = false;
+        }
+
+        function showTutorial() {
+            document.getElementById('tutorialModal').style.display = 'block';
+        }
+
+        function showHighScores() {
+            document.getElementById('highScoresModal').style.display = 'block';
+        }
+
+        function showMainMenu() {
+            document.getElementById('mainMenu').style.display = 'flex';
+            document.getElementById('gameContainer').style.display = 'none';
+            if (timer > 0 && score > 0) {
+                document.getElementById('continueGame').style.display = 'block';
+            } else {
+                document.getElementById('continueGame').style.display = 'none';
+            }
+            winModal.style.display = 'none';
+            gameOverModal.style.display = 'none';
+            clearInterval(timerInterval); // Timer'ı durdur
+        }
+
+        function undoMove() {
+            if (previousState) {
+                window.isUndoAction = true;
+                gameBoard = JSON.parse(JSON.stringify(previousState));
+                renderBoard();
+                document.getElementById("undoButton").disabled = true;
+                window.isUndoAction = false;
+            }
+        }
+
+        function findPossibleMatch() {
+            // Yatay kontrol
+            for (let y = 0; y < HEIGHT; y++) {
+                for (let x = 0; x < WIDTH - 1; x++) {
+                    // Yan yana iki taşı değiştir ve kontrol et
+                    let tempBoard = JSON.parse(JSON.stringify(gameBoard));
+                    [tempBoard[y][x], tempBoard[y][x + 1]] = [tempBoard[y][x + 1], tempBoard[y][x]];
+                    
+                    // Eşleşme var mı kontrol et
+                    if (checkMatches(tempBoard).length > 0) {
+                        return { y1: y, x1: x, y2: y, x2: x + 1 };
+                    }
+                }
+            }
+            
+            // Dikey kontrol
+            for (let x = 0; x < WIDTH; x++) {
+                for (let y = 0; y < HEIGHT - 1; y++) {
+                    // Alt alta iki taşı değiştir ve kontrol et
+                    let tempBoard = JSON.parse(JSON.stringify(gameBoard));
+                    [tempBoard[y][x], tempBoard[y + 1][x]] = [tempBoard[y + 1][x], tempBoard[y][x]];
+                    
+                    // Eşleşme var mı kontrol et
+                    if (checkMatches(tempBoard).length > 0) {
+                        return { y1: y, x1: x, y2: y + 1, x2: x };
+                    }
+                }
+            }
+            
+            return null;
+        }
+
+        function checkMatches(board) {
+            const matches = [];
+            // Yatay kontrol
+            for (let y = 0; y < HEIGHT; y++) {
+                for (let x = 0; x < WIDTH - 2; x++) {
+                    if (board[y][x] === board[y][x + 1] && board[y][x] === board[y][x + 2]) {
+                        matches.push([y, x], [y, x + 1], [y, x + 2]);
+                    }
+                }
+            }
+            // Dikey kontrol
+            for (let x = 0; x < WIDTH; x++) {
+                for (let y = 0; y < HEIGHT - 2; y++) {
+                    if (board[y][x] === board[y + 1][x] && board[y][x] === board[y + 2][x]) {
+                        matches.push([y, x], [y + 1, x], [y + 2, x]);
+                    }
+                }
+            }
+            return Array.from(new Set(matches.map(JSON.stringify)), JSON.parse);
+        }
+
+        let hintTimeout;
+        function showHint() {
+            clearInterval(timerInterval); // Süreyi durdur
+            const match = findPossibleMatch();
+            
+            if (match) {
+                const cell1 = document.querySelector(`.cell[data-y="${match.y1}"][data-x="${match.x1}"]`);
+                const cell2 = document.querySelector(`.cell[data-y="${match.y2}"][data-x="${match.x2}"]`);
+                
+                // İpucu göstergesini ekle
+                const hint1 = document.createElement('div');
+                const hint2 = document.createElement('div');
+                hint1.className = 'hint';
+                hint2.className = 'hint';
+                
+                // İpucu göstergelerini hücrelerin üzerine yerleştir
+                Object.assign(hint1.style, {
+                    width: cell1.offsetWidth + 'px',
+                    height: cell1.offsetHeight + 'px',
+                    left: cell1.offsetLeft + 'px',
+                    top: cell1.offsetTop + 'px'
+                });
+                
+                Object.assign(hint2.style, {
+                    width: cell2.offsetWidth + 'px',
+                    height: cell2.offsetHeight + 'px',
+                    left: cell2.offsetLeft + 'px',
+                    top: cell2.offsetTop + 'px'
+                });
+                
+                board.appendChild(hint1);
+                board.appendChild(hint2);
+                
+                // 2 saniye sonra ipucunu kaldır ve süreyi devam ettir
+                hintTimeout = setTimeout(() => {
+                    hint1.remove();
+                    hint2.remove();
+                    startTimer();
+                }, 2000);
+            }
+        }
+
+        function continueGame() {
+            document.getElementById('mainMenu').style.display = 'none';
+            document.getElementById('gameContainer').style.display = 'block';
+            startTimer(); // Timer'ı tekrar başlat
+        }
+
+        function closeModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+    </script>
+</body>
+</html>
